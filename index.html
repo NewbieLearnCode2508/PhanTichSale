@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <title>Phân tích bán hàng 2025 & kế hoạch 2026</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root{
+      --bg:#0b1220; --card:#0f172a; --muted:#9ca3af; --text:#e5e7eb;
+      --accent:#22d3ee; --accent2:#a78bfa; --ok:#10b981; --danger:#ef4444;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,#071023,#0b1220);color:var(--text)}
+    header{padding:18px;border-bottom:1px solid #111827;background:rgba(10,14,20,0.85);position:sticky;top:0;z-index:10}
+    header h1{margin:0;font-size:18px}
+    header p{margin:6px 0 0;color:var(--muted);font-size:13px}
+    .container{max-width:1200px;margin:20px auto;padding:0 16px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .card{background:var(--card);border:1px solid #111827;border-radius:12px;padding:14px;box-shadow:0 8px 24px rgba(0,0,0,0.5)}
+    .card h2{margin:0 0 10px;font-size:15px}
+    label.pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#071023;border:1px solid #1f2937;color:var(--muted);font-size:12px}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    input[type="file"], input[type="number"], input[type="text"]{
+      background:#071023;border:1px solid #1f2937;color:var(--text);padding:10px;border-radius:8px;width:100%;
+    }
+    button{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;color:#071023;padding:10px 14px;border-radius:10px;font-weight:700;cursor:pointer}
+    .hint{color:var(--muted);font-size:12px;margin-top:6px}
+    table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
+    th,td{border-bottom:1px solid #111827;padding:8px;text-align:left}
+    th{color:var(--muted);font-weight:600}
+    canvas{width:100%;height:260px;border-radius:10px;background:#071023;border:1px solid #1f2937}
+    .badge{background:#071023;border:1px solid #1f2937;padding:6px 10px;border-radius:8px;color:var(--muted);font-size:13px}
+    .anomaly { background:#2b0b0b; border-left:4px solid var(--danger); padding:8px; margin-top:8px; border-radius:6px; color:#ffdede; font-size:13px; }
+    @media(max-width:900px){ .grid{grid-template-columns:1fr} }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Phân tích bán hàng 2025 & kế hoạch 2026</h1>
+    <p>Hỗ trợ dữ liệu: Quantity dạng <strong>1</strong>, TotalAmount dạng <strong>999000</strong> (không có dấu phân cách).</p>
+  </header>
+
+  <div class="container">
+    <div class="grid">
+      <div class="card">
+        <h2>Upload dữ liệu</h2>
+        <div class="row" style="margin-bottom:8px">
+          <div style="flex:1">
+            <label class="pill">File 1 — Chi tiết ngày (CSV)</label>
+            <input id="fileDaily" type="file" accept=".csv" />
+            <div class="hint">Cột tối thiểu: DocDate, ItemCode, ItemName, Quantity, TotalAmount</div>
+          </div>
+          <div style="flex:1">
+            <label class="pill">File 2 — DOANHTHU (CSV)</label>
+            <input id="fileMonthly" type="file" accept=".csv" />
+            <div class="hint">Cột: Mã số, Chỉ tiêu, 01/2025 ... 12/2025, Tổng tiền</div>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:12px">
+          <div style="flex:1">
+            <label class="pill">Mục tiêu doanh thu N (2026)</label>
+            <input id="targetN" type="number" placeholder="Ví dụ: 120000000000" />
+            <div class="hint">Đơn vị theo file của bạn (ví dụ: VND)</div>
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:10px">
+            <button id="btnAnalyze">Phân tích</button>
+            <div id="status" class="badge">Chưa chạy</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Kết quả nhanh</h2>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div style="background:#071023;border:1px solid #111827;padding:10px;border-radius:8px">
+            <div style="color:var(--muted);font-size:13px">Tháng doanh thu cao nhất 2025</div>
+            <div id="bestMonth" style="font-weight:700;margin-top:6px">—</div>
+          </div>
+          <div style="background:#071023;border:1px solid #111827;padding:10px;border-radius:8px">
+            <div style="color:var(--muted);font-size:13px">Tháng trọng điểm 2026</div>
+            <div id="focusMonth2026" style="font-weight:700;margin-top:6px">—</div>
+          </div>
+          <div style="background:#071023;border:1px solid #111827;padding:10px;border-radius:8px">
+            <div style="color:var(--muted);font-size:13px">Sản phẩm bán chạy (SL)</div>
+            <div id="topProductQty" style="font-weight:700;margin-top:6px">—</div>
+          </div>
+          <div style="background:#071023;border:1px solid #111827;padding:10px;border-radius:8px">
+            <div style="color:var(--muted);font-size:13px">Sản phẩm doanh thu cao nhất</div>
+            <div id="topProductRev" style="font-weight:700;margin-top:6px">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top:16px">
+      <div class="card">
+        <h2>Doanh thu theo tháng 2025 (từ DOANHTHU)</h2>
+        <canvas id="chartMonth"></canvas>
+        <table id="tableMonth"><thead><tr><th>Tháng</th><th>Doanh thu</th><th>Tỷ trọng</th></tr></thead><tbody></tbody></table>
+      </div>
+
+      <div class="card">
+        <h2>Top sản phẩm 2025 (từ chi tiết ngày)</h2>
+        <table id="tableProduct"><thead><tr><th>Mã hàng</th><th>Tên hàng</th><th>Tổng số lượng</th><th>Tổng doanh thu</th><th>Đơn giá TB</th></tr></thead><tbody></tbody></table>
+        <div id="anomaliesContainer"></div>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top:16px">
+      <div class="card">
+        <h2>Kế hoạch 2026 theo tháng (mục tiêu N)</h2>
+        <table id="tablePlanMonth"><thead><tr><th>Tháng</th><th>Tỷ trọng 2025</th><th>Kế hoạch doanh thu 2026</th></tr></thead><tbody></tbody></table>
+      </div>
+
+      <div class="card">
+        <h2>Kế hoạch 2026 theo sản phẩm</h2>
+        <table id="tablePlanProduct"><thead><tr><th>Mã hàng</th><th>Tên hàng</th><th>Tỷ trọng 2025</th><th>Kế hoạch doanh thu 2026</th><th>Số lượng cần bán 2026</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;color:var(--muted);font-size:13px">
+      Ghi chú: hàm chuyển số đã tối giản cho dữ liệu dạng <strong>999000</strong>. Nếu có dòng trả hàng (số âm), hệ thống sẽ cộng trừ bình thường.
+    </div>
+  </div>
+
+  <script>
+    // ---------- Utility ----------
+    function detectDelimiter(text) {
+      const lines = String(text || '').split(/\r?\n/).filter(l => l.trim());
+      const sample = lines.slice(0, 6).join('\n');
+      const counts = {
+        ',': (sample.match(/,/g) || []).length,
+        ';': (sample.match(/;/g) || []).length,
+        '\t': (sample.match(/\t/g) || []).length,
+        '|': (sample.match(/\|/g) || []).length
+      };
+      // pick the delimiter with the highest count; default to comma
+      let delim = ',';
+      let max = -1;
+      for (const k in counts) {
+        if (counts[k] > max) { max = counts[k]; delim = k; }
+      }
+      return delim;
+    }
+
+    function parseCSV(text) {
+      const lines = String(text || '').split(/\r?\n/).filter(l => l.trim().length > 0);
+      if (lines.length === 0) return { header: [], rows: [] };
+      let delim = detectDelimiter(text);
+      function parseLine(line) {
+        const out = [];
+        let cur = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (ch === '"') {
+            if (inQuotes && line[i+1] === '"') { cur += '"'; i++; }
+            else inQuotes = !inQuotes;
+          } else if (ch === delim && !inQuotes) {
+            out.push(cur);
+            cur = '';
+          } else cur += ch;
+        }
+        out.push(cur);
+        return out.map(s => s.trim().replace(/^"|"$/g,''));
+      }
+      // parse header and normalize (remove BOM, trim)
+      let header = parseLine(lines[0]).map(h => String(h || '').replace(/^\uFEFF/, '').trim());
+      // fallback: if header looks like a single column but file contains tabs, reparse using tab
+      if (header.length === 1 && text.indexOf('\t') !== -1) {
+        delim = '\t';
+        header = parseLine(lines[0]).map(h => String(h || '').replace(/^\uFEFF/, '').trim());
+      }
+      const rows = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = parseLine(lines[i]);
+        const obj = {};
+        header.forEach((h, idx) => obj[h] = cols[idx] ?? '');
+        rows.push(obj);
+      }
+      return { header, rows, delimiter: delim };
+    }
+
+    // toNumber: simplified for values like 999000 (no thousand separators)
+    function toNumber(x) {
+      if (x === null || x === undefined) return 0;
+      let s = String(x).trim();
+      if (s === '') return 0;
+      const neg = /^\(.*\)$/.test(s);
+      s = s.replace(/[()]/g, '');
+      s = s.replace(/\s/g, '');
+      // If comma/dot appear, handle conservatively:
+      if (s.indexOf(',') !== -1 && s.indexOf('.') !== -1) {
+        s = s.replace(/\./g, '').replace(/,/g, '.');
+      } else if (s.indexOf(',') !== -1 && s.indexOf('.') === -1) {
+        // assume comma is thousand separator for mixed files -> remove
+        s = s.replace(/,/g, '');
+      }
+      const v = parseFloat(s);
+      return neg ? -v : (isNaN(v) ? 0 : v);
+    }
+
+    function parseDate(d) {
+      if (!d) return null;
+      let s = String(d).trim().replace(/\./g,'-').replace(/\//g,'-');
+      const parts = s.split('-');
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          const y = +parts[0], m = +parts[1], day = +parts[2];
+          return new Date(y, m-1, day);
+        } else {
+          let day = +parts[0], m = +parts[1], y = +parts[2];
+          if (y < 100) y = 2000 + y;
+          return new Date(y, m-1, day);
+        }
+      }
+      const dt = new Date(s);
+      return isNaN(dt.getTime()) ? null : dt;
+    }
+
+    function monthLabel(m) { return String(m).padStart(2,'0') + '/2025'; }
+    function formatMoney(n) { return Math.round(n).toLocaleString('vi-VN'); }
+
+    // ---------- Data transforms ----------
+    function unpivotDoanhThu(monthlyCSV) {
+      const monthCols = monthlyCSV.header.filter(h => /\b\d{1,2}\/\d{4}\b/.test(h));
+      const codeKeys = ['Mã số','Ma so','Ma_so','Mã_số','Maso'];
+      const nameKeys = ['Chỉ tiêu','Chi tieu','Chỉ_tiêu','Chi_tieu'];
+      const out = [];
+      monthlyCSV.rows.forEach(r => {
+        const code = getField(r, codeKeys);
+        const name = getField(r, nameKeys);
+        // skip footer rows like "Tổng"
+        if (/tổng|total/i.test(code + ' ' + name)) return;
+        monthCols.forEach(mc => {
+          const val = toNumber(r[mc] ?? '');
+          out.push({ CustomerCode: code, CustomerName: name, Month: parseInt(mc.split('/')[0],10), Revenue: val });
+        });
+      });
+      return out;
+    }
+
+    function sumRevenueByMonth(unpivoted) {
+      const map = new Map();
+      unpivoted.forEach(x => map.set(x.Month, (map.get(x.Month) || 0) + x.Revenue));
+      return Array.from({length:12}, (_,i) => ({ month: i+1, revenue: map.get(i+1) || 0 }));
+    }
+
+    function getField(row, candidates) {
+      function normalizeKey(s) { return String(s || '').trim().toLowerCase().replace(/\s+/g,'').replace(/[_\-\uFEFF]/g,''); }
+      // direct match first
+      for (const k of candidates) {
+        if (k in row && row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== '') {
+          return String(row[k]).trim();
+        }
+      }
+      // fallback: try normalized fuzzy match against row keys
+      const rowKeys = Object.keys(row);
+      for (const rk of rowKeys) {
+        const nrk = normalizeKey(rk);
+        for (const cand of candidates) {
+          const nc = normalizeKey(cand);
+          if (nrk === nc || nrk.indexOf(nc) !== -1 || nc.indexOf(nrk) !== -1) {
+            const v = row[rk];
+            if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+          }
+        }
+      }
+      return '';
+    }
+
+    function groupByProduct(dailyRows) {
+      const codeKeys = ['ItemCode','Item Code','Mã hàng','MaHang','Ma Hang','Item'];
+      const nameKeys = ['ItemName','Item Name','Tên hàng','TenHang','Ten Hang'];
+      const dateKeys = ['DocDate','Docdate','Doc Date','Ngày','Ngay'];
+      const qtyKeys = ['Quantity','Qty','Số lượng','SoLuong','So Luong'];
+      const revKeys = ['TotalAmount','Total Amount','Thành tiền','Thanh tien','Doanh thu','Revenue'];
+
+      const map = new Map();
+      const anomalies = [];
+
+      // diagnostics
+      let processedRows = 0, usedRows = 0, skippedNoDate = 0, skippedYear = 0;
+      let totalQtyRows = 0, totalRevRows = 0;
+
+      dailyRows.forEach(r => {
+        processedRows++;
+        const dateStr = getField(r, dateKeys);
+        const dt = parseDate(dateStr);
+        if (!dt) { skippedNoDate++; return; }
+        if (dt.getFullYear() !== 2025) { skippedYear++; return; }
+
+        let code = getField(r, codeKeys);
+        let name = getField(r, nameKeys);
+        if (!code) code = name || 'UNKNOWN';
+
+        const qty = toNumber(getField(r, qtyKeys));
+        const rev = toNumber(getField(r, revKeys));
+
+        // accumulate row-level totals for diagnostics
+        totalQtyRows += qty;
+        totalRevRows += rev;
+        usedRows++;
+
+        // prefer grouping by code when available (avoid splitting same code across name variants)
+        const key = code || name || 'UNKNOWN';
+        const prev = map.get(key) || { code, name, qty: 0, rev: 0, rows: 0 };
+        prev.qty += qty;
+        prev.rev += rev;
+        prev.rows += 1;
+        map.set(key, prev);
+      });
+
+      // sanity check: if we didn't aggregate anything, likely header/delimiter mismatch
+      if (map.size === 0 && dailyRows.length > 0) {
+        console.warn('groupByProduct: no products aggregated — check header/delimiter. Parsed headers:', Object.keys(dailyRows[0] || {}));
+        const statusEl = document.getElementById('status');
+        if (statusEl) {
+          statusEl.textContent = 'Cảnh báo: không tìm thấy cột Item/Quantity/TotalAmount';
+          statusEl.style.background = '#b45309';
+        }
+      }
+
+      // diagnostics: compare row-level totals vs aggregated map totals
+      const aggQty = Array.from(map.values()).reduce((s,p) => s + p.qty, 0);
+      const aggRev = Array.from(map.values()).reduce((s,p) => s + p.rev, 0);
+      // list top product keys to detect splitting by name variants
+      const topKeys = Array.from(map.values()).sort((a,b) => b.qty - a.qty).slice(0,50).map(p => ({ code: p.code, name: p.name, qty: p.qty, rows: p.rows }));
+      console.info('groupByProduct diagnostics', { processedRows, usedRows, skippedNoDate, skippedYear, totalQtyRows, aggQty, totalRevRows, aggRev, productCount: map.size, topKeys });
+      const statusEl = document.getElementById('status');
+      if (statusEl) {
+        // keep status color unless it's already an error/warning
+        statusEl.textContent = `Đang kiểm tra: ${processedRows} dòng, ${usedRows} dùng (số sp=${map.size}), qty(rows)=${totalQtyRows}, qty(agg)=${aggQty}`;
+        statusEl.style.background = '#f59e0b';
+      }
+
+      const products = [];
+      map.forEach(p => {
+        const avgPrice = p.qty !== 0 ? p.rev / p.qty : 0;
+        const expectedRev = avgPrice * p.qty;
+        const diff = Math.abs(p.rev - expectedRev);
+        const diffRatio = p.rev !== 0 ? diff / Math.abs(p.rev) : (diff > 0 ? 1 : 0);
+        products.push({ ...p, avgPrice, expectedRev, diff, diffRatio });
+        if (Math.abs(diff) > 1000000 || diffRatio > 0.2) {
+          anomalies.push({ code: p.code, name: p.name, qty: p.qty, rev: p.rev, avgPrice, diff, diffRatio });
+        }
+      });
+
+      anomalies.sort((a,b) => Math.abs(b.diff) - Math.abs(a.diff));
+      return { products, anomalies };
+    }
+
+    function computeWeightsMonth(monthArr) {
+      const total = monthArr.reduce((s,x) => s + x.revenue, 0);
+      return monthArr.map(x => ({ ...x, weight: total ? x.revenue / total : 0 }));
+    }
+
+    function computeWeightsProduct(prodArr) {
+      const total = prodArr.reduce((s,x) => s + x.rev, 0);
+      return prodArr.map(x => ({ ...x, weight: total ? x.rev / total : 0, avgPrice: x.qty ? x.rev / x.qty : 0 }));
+    }
+
+    // ---------- Rendering ----------
+    function drawBarChart(canvas, labels, values) {
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width = canvas.clientWidth;
+      const H = canvas.height = canvas.clientHeight;
+      ctx.clearRect(0,0,W,H);
+      const padding = 36;
+      const maxVal = Math.max(...values, 1);
+      const count = values.length;
+      const slot = (W - padding*2) / count;
+      const barW = slot * 0.6;
+      const gap = slot * 0.4;
+      ctx.strokeStyle = '#1f2937';
+      ctx.beginPath();
+      ctx.moveTo(padding, H - padding);
+      ctx.lineTo(W - padding, H - padding);
+      ctx.moveTo(padding, H - padding);
+      ctx.lineTo(padding, padding);
+      ctx.stroke();
+      ctx.textAlign = 'center';
+      ctx.font = '12px system-ui';
+      for (let i = 0; i < count; i++) {
+        const x = padding + i * slot + gap/2;
+        const h = (H - padding*2) * (values[i] / maxVal);
+        const y = H - padding - h;
+        const grad = ctx.createLinearGradient(x, y, x, y + h);
+        grad.addColorStop(0, '#22d3ee'); grad.addColorStop(1, '#a78bfa');
+        ctx.fillStyle = grad;
+        ctx.fillRect(x, y, barW, h);
+        ctx.fillStyle = '#9ca3af';
+        ctx.save();
+        ctx.translate(x + barW/2, H - padding + 14);
+        ctx.rotate(-Math.PI/6);
+        ctx.fillText(labels[i], 0, 0);
+        ctx.restore();
+      }
+    }
+
+    function renderMonthTable(weights) {
+      const tbody = document.querySelector('#tableMonth tbody'); tbody.innerHTML = '';
+      weights.forEach(x => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${monthLabel(x.month)}</td><td>${formatMoney(x.revenue)}</td><td>${(x.weight*100).toFixed(2)}%</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderProductTable(products) {
+      const tbody = document.querySelector('#tableProduct tbody'); tbody.innerHTML = '';
+      products.sort((a,b) => b.rev - a.rev).slice(0,50).forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${p.code}</td><td>${p.name}</td><td>${formatMoney(p.qty)}</td><td>${formatMoney(p.rev)}</td><td>${formatMoney(Math.round(p.avgPrice))}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderAnomalies(anomalies) {
+      const container = document.getElementById('anomaliesContainer'); container.innerHTML = '';
+      if (!anomalies || anomalies.length === 0) return;
+      const header = document.createElement('div'); header.className = 'anomaly';
+      header.innerHTML = `<strong>Phát hiện ${anomalies.length} sản phẩm có chênh lệch lớn (top 10 hiển thị)</strong>`;
+      container.appendChild(header);
+      anomalies.slice(0,10).forEach(a => {
+        const d = document.createElement('div'); d.className = 'anomaly';
+        d.style.background = '#1b0b0b';
+        d.innerHTML = `<div><strong>${a.code} — ${a.name}</strong></div>
+                       <div>Qty=${formatMoney(a.qty)} | Rev=${formatMoney(a.rev)} | Đơn giá TB=${formatMoney(Math.round(a.avgPrice))}</div>
+                       <div style="color:#ffdede">Diff=${formatMoney(Math.round(a.diff))} | DiffRatio=${(a.diffRatio*100).toFixed(2)}%</div>`;
+        container.appendChild(d);
+      });
+    }
+
+    function renderPlanMonth(weights, N) {
+      const tbody = document.querySelector('#tablePlanMonth tbody'); tbody.innerHTML = '';
+      const labels = [], values = [];
+      weights.forEach(x => {
+        const plan = N * x.weight;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${monthLabel(x.month)}</td><td>${(x.weight*100).toFixed(2)}%</td><td>${formatMoney(Math.round(plan))}</td>`;
+        tbody.appendChild(tr);
+        labels.push(monthLabel(x.month)); values.push(plan);
+      });
+      drawBarChart(document.getElementById('chartMonth'), labels, values);
+    }
+
+    function renderPlanProduct(products, N) {
+      const tbody = document.querySelector('#tablePlanProduct tbody'); tbody.innerHTML = '';
+      const totalRev = products.reduce((s,x) => s + x.rev, 0);
+
+      products.sort((a,b) => b.rev - a.rev).slice(0,50).forEach(p => {
+        const share = totalRev ? p.rev / totalRev : 0;
+        const planRev = N * share;
+        const planQty = p.avgPrice ? planRev / p.avgPrice : 0;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${p.code}</td><td>${p.name}</td><td>${(share * 100).toFixed(2)}%</td><td>${formatMoney(Math.round(planRev))}</td><td>${formatMoney(Math.round(planQty))}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function updateQuickStats(monthArr, products, weightsMonth) {
+      const best = monthArr.slice().sort((a,b)=>b.revenue-a.revenue)[0];
+      document.getElementById('bestMonth').textContent = best ? `${monthLabel(best.month)} — ${formatMoney(best.revenue)}` : '—';
+      const topQty = products.slice().sort((a,b)=>b.qty-a.qty)[0];
+      document.getElementById('topProductQty').textContent = topQty ? `${topQty.code} — ${topQty.name} (${formatMoney(topQty.qty)})` : '—';
+      const topRev = products.slice().sort((a,b)=>b.rev-a.rev)[0];
+      document.getElementById('topProductRev').textContent = topRev ? `${topRev.code} — ${topRev.name} (${formatMoney(topRev.rev)})` : '—';
+      const focus = weightsMonth.slice().sort((a,b)=>b.weight-a.weight)[0];
+      document.getElementById('focusMonth2026').textContent = focus ? `${monthLabel(focus.month)} — ${(focus.weight*100).toFixed(2)}%` : '—';
+    }
+
+    function validateTotals(monthArr, products) {
+      const monthlyTotal = monthArr.reduce((s,x)=>s+x.revenue,0);
+      const dailyTotal = products.reduce((s,x)=>s+x.rev,0);
+      if (Math.abs(monthlyTotal - dailyTotal) > Math.max(1000, monthlyTotal * 0.01)) {
+        // show visible warning on UI
+        const el = document.getElementById('status');
+        el.textContent = 'Cảnh báo: tổng monthly ≠ tổng daily';
+        el.style.background = '#b45309';
+        console.warn('Totals mismatch', { monthlyTotal, dailyTotal });
+      }
+    }
+
+    // ---------- Main ----------
+    function readFileAsText(file) {
+      return new Promise((resolve,reject)=>{
+        const r = new FileReader();
+        r.onload = ()=>resolve(r.result);
+        r.onerror = reject;
+        r.readAsText(file,'UTF-8');
+      });
+    }
+
+    document.getElementById('btnAnalyze').addEventListener('click', async () => {
+      try {
+        document.getElementById('status').textContent = 'Đang xử lý...';
+        const fDaily = document.getElementById('fileDaily').files[0];
+        const fMonthly = document.getElementById('fileMonthly').files[0];
+        const N = Number(document.getElementById('targetN').value || 0);
+        if (!fDaily || !fMonthly) { alert('Vui lòng upload cả 2 file CSV.'); document.getElementById('status').textContent='Thiếu file'; return; }
+
+        const [txtDaily, txtMonthly] = await Promise.all([readFileAsText(fDaily), readFileAsText(fMonthly)]);
+        const dailyCSV = parseCSV(txtDaily);
+        const monthlyCSV = parseCSV(txtMonthly);
+
+        // monthly authoritative totals
+        const unp = unpivotDoanhThu(monthlyCSV);
+        const monthArr = sumRevenueByMonth(unp);
+        const weightsMonth = computeWeightsMonth(monthArr);
+
+        // products from daily
+        const { products, anomalies } = groupByProduct(dailyCSV.rows);
+
+        // render
+        renderMonthTable(weightsMonth);
+        renderProductTable(products);
+        renderAnomalies(anomalies);
+        renderPlanMonth(weightsMonth, N);
+        renderPlanProduct(products, N);
+        updateQuickStats(monthArr, products, weightsMonth);
+        validateTotals(monthArr, products);
+
+        document.getElementById('status').textContent = 'Đã phân tích';
+      } catch (err) {
+        console.error(err);
+        document.getElementById('status').textContent = 'Lỗi phân tích';
+        alert('Lỗi khi đọc/parse CSV. Kiểm tra encoding (UTF-8) và tên cột. Nếu cần, dán 5–10 dòng mẫu vào chat để mình điều chỉnh.');
+      }
+    });
+  </script>
+</body>
+</html>
