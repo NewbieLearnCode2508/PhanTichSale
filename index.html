@@ -36,6 +36,10 @@
     .table-scroll { max-height:360px; overflow:auto; border-radius:8px; padding-right:8px; }
     .table-toolbar { display:flex; gap:10px; align-items:center; margin-bottom:8px }
     .table-toolbar select { background:#071023;border:1px solid #1f2937;color:var(--text);padding:8px;border-radius:8px }
+    /* quick target buttons */
+    .target-controls{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-left:8px}
+    .small-btn{background:transparent;border:1px solid #1f2937;color:var(--muted);padding:6px 8px;border-radius:8px;font-weight:700;cursor:pointer;font-size:12px}
+    .small-btn:hover{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#071023;border-color:transparent}
 
     /* --- subtle animations --- */
     .card { transition: transform .28s ease, box-shadow .28s ease, opacity .28s ease; transform-origin: top center; }
@@ -79,7 +83,17 @@
         <div class="row" style="margin-top:12px">
           <div style="flex:1">
             <label class="pill">Mục tiêu doanh thu N (2026)</label>
-            <input id="targetN" type="number" placeholder="Ví dụ: 120000000000" />
+            <div style="display:flex;gap:8px;align-items:center">
+              <input id="targetN" type="number" placeholder="Ví dụ: 120000000000" style="flex:1" />
+              <div class="target-controls" title="Nút nhanh: thêm số 0 / nhân nhanh">
+                <button class="small-btn" data-action="append" data-value="1" title="Thêm 1 số 0">+0</button>
+                <button class="small-btn" data-action="append" data-value="2" title="Thêm 2 số 0">+00</button>
+                <button class="small-btn" data-action="mul" data-value="10" title="Nhân ×10">×10</button>
+                <button class="small-btn" data-action="mul" data-value="100" title="Nhân ×100">×100</button>
+                <button class="small-btn" data-action="mul" data-value="1000000" title="Nhân ×1,000,000">Mil</button>
+                <button class="small-btn" data-action="mul" data-value="1000000000" title="Nhân ×1,000,000,000">Bil</button>
+              </div>
+            </div>
             <div class="hint">Đơn vị theo file của bạn (ví dụ: VND)</div>
           </div>
           <div style="display:flex;align-items:flex-end;gap:10px">
@@ -326,7 +340,7 @@
     }
 
     function monthLabel(m) { return String(m).padStart(2,'0') + '/2025'; }
-    function monthLabelYear(m, y) { return String(m).padStart(2,'0') + '/' + y; }
+    function monthLabelYear(m, y) { return String(m).padStart(2,'0') + '/' + String(y); }
     function formatMoney(n) { return Math.round(n).toLocaleString('vi-VN'); }
 
     // ---------- Data transforms ----------
@@ -694,14 +708,13 @@
       weights.forEach((x,i) => {
         const plan = N * x.weight;
         const tr = document.createElement('tr');
-        tr.dataset.month = x.month;
         tr.style.cursor = 'pointer';
         tr.title = 'Click để xem danh sách sản phẩm bán ước tính cho mục tiêu tháng 2026';
-        tr.innerHTML = `<td>${monthLabel(x.month)}</td><td>${(x.weight*100).toFixed(2)}%</td><td>${formatMoney(Math.round(plan))}</td>`;
+        tr.innerHTML = `<td>${monthLabelYear(x.month,2026)}</td><td>${(x.weight*100).toFixed(2)}%</td><td>${formatMoney(Math.round(plan))}</td>`;
         tr.addEventListener('click', ()=> onPlanMonthClick(x.month, x.weight));
         tbody.appendChild(tr);
         setTimeout(() => tr.classList.add('row-appear'), i * 25);
-        labels.push(monthLabel(x.month)); values.push(plan);
+        labels.push(monthLabelYear(x.month,2026)); values.push(plan);
       });
       drawBarChart(document.getElementById('chartMonth'), labels, values);
     }
@@ -721,9 +734,33 @@
       });
     }
 
+    // ---------- Target helper buttons & update handlers ----------
+    function adjustTarget(action, arg) {
+      const el = document.getElementById('targetN');
+      const v = Number(el.value || 0);
+      if (action === 'mul') {
+        el.value = v ? Math.round(v * Number(arg)) : Number(arg);
+      } else if (action === 'append') {
+        const base = v || 1;
+        const s = String(Math.round(base)) + '0'.repeat(Number(arg));
+        el.value = Number(s);
+      } else if (action === 'preset') {
+        el.value = Number(arg);
+      }
+      triggerTargetUpdate();
+    }
+    function triggerTargetUpdate() {
+      const N = Number(document.getElementById('targetN').value || 0);
+      if (window._lastProducts) renderPlanProduct(window._lastProducts, N);
+      if (window._lastWeightsMonth) renderPlanMonth(window._lastWeightsMonth, N);
+    }
+    document.querySelectorAll('.target-controls button[data-action]').forEach(b => b.addEventListener('click', ()=> {
+      adjustTarget(b.dataset.action, b.dataset.value);
+    }));
+    document.getElementById('targetN').addEventListener('input', ()=> triggerTargetUpdate());
+
     // ---------- Month detail & export helpers ----------
     function onMonthClick(month, weight, revenue2025) {
-      // legacy: open detail for historical 2025 month (kept for completeness)
       const N = Number(document.getElementById('targetN').value || 0);
       const monthTarget = N ? Math.round(N * (weight || 0)) : Math.round(revenue2025 || 0);
       const prods = window._productMonthly || buildProductMonthly(window._lastDailyRows || []);
@@ -816,7 +853,7 @@
       });
 
       const infoEl = document.getElementById('monthDetailInfo');
-      if (infoEl) infoEl.textContent = `Mục tiêu ${monthLabelYear(month,year)} = ${formatMoney(monthTarget)} — Phương pháp: ${method} — Đã loại ${excludedCount} sản phẩm (không có giá/demand=0)`;
+      if (infoEl) infoEl.textContent = `${year===2026? 'Kế hoạch' : 'Mục tiêu'} ${monthLabelYear(month,year)} = ${formatMoney(monthTarget)} — Phương pháp: ${method} — Đã loại ${excludedCount} sản phẩm (không có giá/demand=0)`;
     }
 
     function downloadCSV(filename, content) {
@@ -829,7 +866,8 @@
     function exportMonthDetailCSV() {
       const last = window._lastMonthDetail;
       if (!last || !last.rows || last.rows.length === 0) { alert('Không có dữ liệu để xuất. Vui lòng chọn một tháng.'); return; }
-      const lines = [ ['Mã hàng','Tên hàng','Doanh thu 2025 (tháng)','Dự báo thô','Tỷ trọng','Kế hoạch doanh thu','Kế hoạch số lượng','Phương pháp'].join(',') ];
+      const headerLabel = (last.year === 2026) ? 'Doanh thu 2025 (dùng làm base)' : 'Doanh thu 2025 (tháng)';
+      const lines = [ ['Mã hàng','Tên hàng', headerLabel,'Dự báo thô','Tỷ trọng','Kế hoạch doanh thu','Kế hoạch số lượng','Phương pháp'].join(',') ];
       last.rows.forEach(r => lines.push([r.code, `"${r.name.replace(/"/g,'""') }"`, Math.round(r.rawForecast||0), (r.share*100).toFixed(2)+'%', r.planRev, r.planQty, last.method || ''].join(',')));
       const fname = `month-${String(last.month).padStart(2,'0')}-${last.year || '2025'}-detail.csv`;
       downloadCSV(fname, lines.join('\n'));
@@ -920,6 +958,8 @@
         const unp = unpivotDoanhThu(monthlyCSV);
         const monthArr = sumRevenueByMonth(unp);
         const weightsMonth = computeWeightsMonth(monthArr);
+        // keep last weights to allow instant re-render when target changes
+        window._lastWeightsMonth = weightsMonth; 
 
         // products from daily
         const { products, anomalies } = groupByProduct(dailyCSV.rows);
