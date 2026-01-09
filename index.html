@@ -31,6 +31,25 @@
     canvas{width:100%;height:260px;border-radius:10px;background:#071023;border:1px solid #1f2937}
     .badge{background:#071023;border:1px solid #1f2937;padding:6px 10px;border-radius:8px;color:var(--muted);font-size:13px}
     .anomaly { background:#2b0b0b; border-left:4px solid var(--danger); padding:8px; margin-top:8px; border-radius:6px; color:#ffdede; font-size:13px; }
+
+    /* table scroll and toolbar */
+    .table-scroll { max-height:360px; overflow:auto; border-radius:8px; padding-right:8px; }
+    .table-toolbar { display:flex; gap:10px; align-items:center; margin-bottom:8px }
+    .table-toolbar select { background:#071023;border:1px solid #1f2937;color:var(--text);padding:8px;border-radius:8px }
+
+    /* --- subtle animations --- */
+    .card { transition: transform .28s ease, box-shadow .28s ease, opacity .28s ease; transform-origin: top center; }
+    .card.appear { animation: cardIn .42s cubic-bezier(.2,.8,.2,1) both; }
+    @keyframes cardIn { from { opacity: 0; transform: translateY(8px) scale(.995); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+    .row-appear { animation: rowIn .36s ease both; }
+    @keyframes rowIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+
+    .anomaly.appear { animation: rowIn .4s ease both; }
+
+    .badge.pulse { animation: pulse 1200ms infinite; box-shadow: 0 0 0 0 rgba(34,211,238,0.25); }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(34,211,238,0.25); } 70% { box-shadow: 0 0 0 10px rgba(34,211,238,0); } 100% { box-shadow: 0 0 0 0 rgba(34,211,238,0); } }
+
     @media(max-width:900px){ .grid{grid-template-columns:1fr} }
   </style>
 </head>
@@ -102,7 +121,17 @@
 
       <div class="card">
         <h2>Top sản phẩm 2025 (từ chi tiết ngày)</h2>
-        <table id="tableProduct"><thead><tr><th>Mã hàng</th><th>Tên hàng</th><th>Tổng số lượng</th><th>Tổng doanh thu</th><th>Đơn giá TB</th></tr></thead><tbody></tbody></table>
+        <div class="table-toolbar">
+          <div style="flex:1"><label class="pill">Hiển thị</label>
+            <select id="prodTopK"><option value="10">Top 10</option><option value="25">Top 25</option><option value="50" selected>Top 50</option><option value="100">Top 100</option><option value="all">Tất cả</option></select>
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:10px">
+            <button id="prodToggleBtn">Xem tất cả</button>
+          </div>
+        </div>
+        <div id="productTableWrapper" class="table-scroll">
+          <table id="tableProduct"><thead><tr><th>Mã hàng</th><th>Tên hàng</th><th>Tổng số lượng</th><th>Tổng doanh thu</th><th>Đơn giá TB</th></tr></thead><tbody></tbody></table>
+        </div>
         <div id="anomaliesContainer"></div>
       </div>
     </div>
@@ -116,6 +145,56 @@
       <div class="card">
         <h2>Kế hoạch 2026 theo sản phẩm</h2>
         <table id="tablePlanProduct"><thead><tr><th>Mã hàng</th><th>Tên hàng</th><th>Tỷ trọng 2025</th><th>Kế hoạch doanh thu 2026</th><th>Số lượng cần bán 2026</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top:16px">
+      <div class="card" id="monthDetailCard" style="display:none">
+        <h2 id="monthDetailTitle">Chi tiết tháng</h2>
+        <div class="row" style="margin-bottom:8px">
+          <div style="flex:1">
+            <div id="monthDetailInfo" class="hint">Chọn một tháng ở bảng 'Doanh thu theo tháng 2025' để xem chi tiết.</div>
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:10px">
+            <label class="pill">Hiển thị</label>
+            <select id="monthDetailTopK"><option value="25">Top 25</option><option value="50" selected>Top 50</option><option value="100">Top 100</option><option value="all">Tất cả</option></select>
+            <button id="btnExportMonthDetail">Xuất CSV</button>
+            <button id="btnCloseMonthDetail">Đóng</button>
+          </div>
+        </div>
+        <div id="monthDetailWrapper" class="table-scroll">
+          <table id="tableMonthDetail"><thead><tr><th>Mã hàng</th><th>Tên hàng</th><th>Doanh thu 2025 (tháng)</th><th>Tỷ trọng</th><th>Kế hoạch doanh thu</th><th>Kế hoạch số lượng</th></tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top:16px">
+      <div class="card">
+        <h2>Dự đoán 2026</h2>
+        <div class="row" style="margin-bottom:8px">
+          <div style="flex:1">
+            <label class="pill">Phương pháp</label>
+            <select id="predictMethod" style="padding:8px;border-radius:8px;background:#071023;color:var(--text);border:1px solid #1f2937">
+              <option value="heuristic">Heuristic (fast)</option>
+              <option value="holt">Holt-Winters (seasonal)</option>
+            </select>
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:10px">
+            <button id="btnPredict">Dự đoán</button>
+          </div>
+        </div>
+        <div class="table-toolbar">
+          <div style="flex:1"><label class="pill">Hiển thị</label>
+            <select id="predictTopK"><option value="25">Top 25</option><option value="50" selected>Top 50</option><option value="100">Top 100</option><option value="200">Top 200</option><option value="all">Tất cả</option></select>
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:10px">
+            <button id="predictToggleBtn">Xem tất cả</button>
+          </div>
+        </div>
+        <div id="predictTableWrapper" class="table-scroll">
+          <table id="tablePredictProduct"><thead><tr><th>Mã hàng</th><th>Tên hàng</th><th>Dự kiến doanh thu 2026</th><th>Dự kiến số lượng 2026</th></tr></thead><tbody></tbody></table>
+        </div>
+        <div id="predictStatus" class="hint" style="margin-top:8px">—</div>
       </div>
     </div>
 
@@ -182,21 +261,48 @@
       return { header, rows, delimiter: delim };
     }
 
-    // toNumber: simplified for values like 999000 (no thousand separators)
+    // toNumber: robust handling for mixed thousands/decimal separators and weird chars
     function toNumber(x) {
       if (x === null || x === undefined) return 0;
       let s = String(x).trim();
       if (s === '') return 0;
       const neg = /^\(.*\)$/.test(s);
-      s = s.replace(/[()]/g, '');
-      s = s.replace(/\s/g, '');
-      // If comma/dot appear, handle conservatively:
-      if (s.indexOf(',') !== -1 && s.indexOf('.') !== -1) {
-        s = s.replace(/\./g, '').replace(/,/g, '.');
-      } else if (s.indexOf(',') !== -1 && s.indexOf('.') === -1) {
-        // assume comma is thousand separator for mixed files -> remove
-        s = s.replace(/,/g, '');
+      // strip parentheses, non-breaking spaces and normal spaces
+      s = s.replace(/[()]/g, '').replace(/\u00A0|\s/g, '');
+      // remove currency/letters except separators and digits and minus
+      s = s.replace(/[^\d,\.\-]/g, '');
+
+      const hasComma = s.indexOf(',') !== -1;
+      const hasDot = s.indexOf('.') !== -1;
+
+      if (hasComma && hasDot) {
+        // decide by last separator (common formats: 1.234,56 or 1,234.56)
+        if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+          // comma is decimal, dots are thousands
+          s = s.replace(/\./g, '').replace(/,/g, '.');
+        } else {
+          // dot is decimal, commas are thousands
+          s = s.replace(/,/g, '');
+        }
+      } else if (hasComma) {
+        // only comma present: if comma groups look like thousands (1,234,567) remove commas
+        if (/^\d{1,3}(,\d{3})+(,\d+)?$/.test(s)) {
+          s = s.replace(/,/g, '');
+        } else if (/,\d{1,3}$/.test(s)) {
+          // likely decimal like 1,5 or 1,00 -> convert to 1.5
+          s = s.replace(/,/g, '.');
+        } else {
+          // fallback: remove commas
+          s = s.replace(/,/g, '');
+        }
+      } else if (hasDot) {
+        // only dot present: if dot groups look like thousands (1.234.567) remove dots
+        if (/^\d{1,3}(\.\d{3})+(\.\d+)?$/.test(s)) {
+          s = s.replace(/\./g, '');
+        }
+        // else dot is decimal -> leave
       }
+
       const v = parseFloat(s);
       return neg ? -v : (isNaN(v) ? 0 : v);
     }
@@ -220,6 +326,7 @@
     }
 
     function monthLabel(m) { return String(m).padStart(2,'0') + '/2025'; }
+    function monthLabelYear(m, y) { return String(m).padStart(2,'0') + '/' + y; }
     function formatMoney(n) { return Math.round(n).toLocaleString('vi-VN'); }
 
     // ---------- Data transforms ----------
@@ -295,13 +402,23 @@
         let name = getField(r, nameKeys);
         if (!code) code = name || 'UNKNOWN';
 
-        const qty = toNumber(getField(r, qtyKeys));
-        const rev = toNumber(getField(r, revKeys));
+        const rawQty = getField(r, qtyKeys);
+        const rawRev = getField(r, revKeys);
+        const qty = toNumber(rawQty);
+        const rev = toNumber(rawRev);
 
         // accumulate row-level totals for diagnostics
         totalQtyRows += qty;
         totalRevRows += rev;
         usedRows++;
+
+        // detect suspicious qty parsing (raw non-empty but parsed 0 or very different)
+        if (rawQty && String(rawQty).trim() !== '') {
+          if (qty === 0 || (Math.abs(qty) < 1 && /\d/.test(rawQty))) {
+            // collect a small sample
+            problematicRows.push({ date: dateStr, code, name, rawQty, qty, rawRev, rev });
+          }
+        }
 
         // prefer grouping by code when available (avoid splitting same code across name variants)
         const key = code || name || 'UNKNOWN';
@@ -327,11 +444,16 @@
       const aggRev = Array.from(map.values()).reduce((s,p) => s + p.rev, 0);
       // list top product keys to detect splitting by name variants
       const topKeys = Array.from(map.values()).sort((a,b) => b.qty - a.qty).slice(0,50).map(p => ({ code: p.code, name: p.name, qty: p.qty, rows: p.rows }));
-      console.info('groupByProduct diagnostics', { processedRows, usedRows, skippedNoDate, skippedYear, totalQtyRows, aggQty, totalRevRows, aggRev, productCount: map.size, topKeys });
+
+      // problematic rows sample (qty parsing issues)
+      const problemSample = (typeof problematicRows !== 'undefined') ? problematicRows.slice(0,30) : [];
+      console.info('groupByProduct diagnostics', { processedRows, usedRows, skippedNoDate, skippedYear, totalQtyRows, aggQty, totalRevRows, aggRev, productCount: map.size, topKeys, problemSample });
       const statusEl = document.getElementById('status');
       if (statusEl) {
         // keep status color unless it's already an error/warning
-        statusEl.textContent = `Đang kiểm tra: ${processedRows} dòng, ${usedRows} dùng (số sp=${map.size}), qty(rows)=${totalQtyRows}, qty(agg)=${aggQty}`;
+        let msg = `Đang kiểm tra: ${processedRows} dòng, ${usedRows} dùng (số sp=${map.size}), qty(rows)=${totalQtyRows}, qty(agg)=${aggQty}`;
+        if (problemSample.length) msg += ` — Vấn đề qty:${problemSample.length}`;
+        statusEl.textContent = msg;
         statusEl.style.background = '#f59e0b';
       }
 
@@ -361,6 +483,118 @@
       return prodArr.map(x => ({ ...x, weight: total ? x.rev / total : 0, avgPrice: x.qty ? x.rev / x.qty : 0 }));
     }
 
+    // ---------- Forecasting helpers ----------
+    function buildProductMonthly(dailyRows) {
+      const codeKeys = ['ItemCode','Item Code','Mã hàng','MaHang','Ma Hang','Item'];
+      const nameKeys = ['ItemName','Item Name','Tên hàng','TenHang','Ten Hang'];
+      const dateKeys = ['DocDate','Docdate','Doc Date','Ngày','Ngay'];
+      const qtyKeys = ['Quantity','Qty','Số lượng','SoLuong','So Luong'];
+      const revKeys = ['TotalAmount','Total Amount','Thành tiền','Thanh tien','Doanh thu','Revenue'];
+      const map = new Map();
+      dailyRows.forEach(r => {
+        const dateStr = getField(r, dateKeys);
+        const dt = parseDate(dateStr);
+        if (!dt || dt.getFullYear() !== 2025) return;
+        const code = getField(r, codeKeys) || getField(r, nameKeys) || 'UNKNOWN';
+        const name = getField(r, nameKeys) || code;
+        const qty = toNumber(getField(r, qtyKeys));
+        const rev = toNumber(getField(r, revKeys));
+        const m = dt.getMonth();
+        const prev = map.get(code) || { code, name, qty:0, rev:0, rows:0, monthlyRev: Array(12).fill(0), monthlyQty: Array(12).fill(0) };
+        prev.qty += qty; prev.rev += rev; prev.rows += 1;
+        prev.monthlyRev[m] += rev; prev.monthlyQty[m] += qty;
+        map.set(code, prev);
+      });
+      return Array.from(map.values()).map(p => ({ ...p, avgPrice: p.qty ? p.rev / p.qty : (p.monthlyQty.reduce((s,x)=>s+x,0) ? p.rev / p.monthlyQty.reduce((s,x)=>s+x,0) : 0) }));
+    }
+
+    // basic Holt-Winters additive implementation (works with season length L=12)
+    function holtWintersAdditive(series, L=12, m=12, alpha=0.2, beta=0.01, gamma=0.1) {
+      const n = series.length;
+      if (n === 0) return Array(m).fill(0);
+      if (n < L) {
+        const last = series.slice(Math.max(0, n - L));
+        const res = []; for (let i=0;i<m;i++) res.push(last[i % last.length] || 0); return res;
+      }
+      const seasons = Math.floor(n / L);
+      const seasonAverages = Array(seasons).fill(0).map((_,i)=>{
+        let sum = 0; for (let j=0;j<L;j++) sum += series[i*L + j] || 0; return sum / L;
+      });
+      const seasonals = Array(L).fill(0);
+      for (let j=0;j<L;j++) {
+        let sum = 0; for (let i=0;i<seasons;i++) sum += series[i*L + j] || 0; seasonals[j] = sum / seasons - (seasonAverages.reduce((s,a)=>s+a,0)/seasons);
+      }
+      let level = seasonAverages[0];
+      let trend = (seasonAverages[1] - seasonAverages[0]) / L;
+      for (let i=0;i<n;i++) {
+        const val = series[i];
+        const lastLevel = level;
+        level = alpha * (val - seasonals[i % L]) + (1 - alpha) * (level + trend);
+        trend = beta * (level - lastLevel) + (1 - beta) * trend;
+        seasonals[i % L] = gamma * (val - level) + (1 - gamma) * seasonals[i % L];
+      }
+      const res = [];
+      for (let k=1;k<=m;k++) res.push(Math.max(0, level + k * trend + seasonals[(n + k -1) % L]));
+      return res;
+    }
+
+    function predictProducts(N, method) {
+      const rows = window._lastDailyRows || [];
+      const prods = buildProductMonthly(rows);
+      const top = prods.sort((a,b)=>b.rev - a.rev).slice(0,500);
+      const per = top.map(p => {
+        const series = p.monthlyRev.map(x=>x||0);
+        const forecast = method === 'holt' ? holtWintersAdditive(series, 12, 12, 0.2, 0.01, 0.1) : series.slice();
+        const totalForecast = forecast.reduce((s,x)=>s+x,0);
+        return { ...p, series, forecast, totalForecast };
+      });
+
+      // exclude products without price (avgPrice <= 0) or with no forecasted demand
+      const excluded = per.filter(p => !p.avgPrice || p.avgPrice <= 0 || p.totalForecast <= 0);
+      const included = per.filter(p => p.avgPrice && p.avgPrice > 0 && p.totalForecast > 0);
+
+      const psEl = document.getElementById('predictStatus');
+      if (!included.length) {
+        if (psEl) psEl.textContent = `Không có sản phẩm hợp lệ để dự đoán. Đã loại ${excluded.length} sản phẩm (không có giá hoặc demand=0)`;
+        renderPredictTable([]);
+        return;
+      }
+
+      const sumForecast = included.reduce((s,p) => s + p.totalForecast, 0);
+      const totalRev2025 = prods.reduce((s,x)=>s + x.rev, 0);
+      const scaled = included.map(p=>{
+        const scale = sumForecast ? (N * (p.totalForecast / sumForecast)) : (N * (p.rev / (totalRev2025 || 1)));
+        const qty = p.avgPrice ? scale / p.avgPrice : 0;
+        return { code: p.code, name: p.name, predRev: scale, predQty: qty };
+      }).sort((a,b)=>b.predRev - a.predRev);
+
+      renderPredictTable(scaled);
+      // keep last predicted rows for re-rendering when user changes top-K
+      window._lastPredicted = scaled;
+      if (psEl) psEl.textContent = `Đã loại ${excluded.length} sản phẩm (không có giá hoặc demand=0)`;
+    }
+
+    function renderPredictTable(rows) {
+      const tbody = document.querySelector('#tablePredictProduct tbody'); tbody.innerHTML = '';
+      const sel = document.getElementById('predictTopK');
+      const top = sel ? sel.value : '50';
+      const max = top === 'all' ? rows.length : Math.max(1, parseInt(top,10) || 50);
+      const wrapper = document.getElementById('predictTableWrapper');
+      if (wrapper) wrapper.style.maxHeight = (top === 'all') ? '' : '360px';
+      rows.slice(0, max).forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${r.code}</td><td>${r.name}</td><td>${formatMoney(Math.round(r.predRev))}</td><td>${formatMoney(Math.round(r.predQty))}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById('btnPredict').addEventListener('click', ()=>{
+      const method = document.getElementById('predictMethod').value;
+      const N = Number(document.getElementById('targetN').value || 0);
+      if (!window._lastDailyRows || window._lastDailyRows.length === 0) { alert('Chưa có dữ liệu daily. Chạy Phân tích trước.'); return; }
+      predictProducts(N, method);
+    });
+
     // ---------- Rendering ----------
     function drawBarChart(canvas, labels, values) {
       const ctx = canvas.getContext('2d');
@@ -370,50 +604,70 @@
       const padding = 36;
       const maxVal = Math.max(...values, 1);
       const count = values.length;
-      const slot = (W - padding*2) / count;
+      const slot = (W - padding*2) / Math.max(count,1);
       const barW = slot * 0.6;
       const gap = slot * 0.4;
-      ctx.strokeStyle = '#1f2937';
-      ctx.beginPath();
-      ctx.moveTo(padding, H - padding);
-      ctx.lineTo(W - padding, H - padding);
-      ctx.moveTo(padding, H - padding);
-      ctx.lineTo(padding, padding);
-      ctx.stroke();
       ctx.textAlign = 'center';
       ctx.font = '12px system-ui';
-      for (let i = 0; i < count; i++) {
-        const x = padding + i * slot + gap/2;
-        const h = (H - padding*2) * (values[i] / maxVal);
-        const y = H - padding - h;
-        const grad = ctx.createLinearGradient(x, y, x, y + h);
-        grad.addColorStop(0, '#22d3ee'); grad.addColorStop(1, '#a78bfa');
-        ctx.fillStyle = grad;
-        ctx.fillRect(x, y, barW, h);
-        ctx.fillStyle = '#9ca3af';
-        ctx.save();
-        ctx.translate(x + barW/2, H - padding + 14);
-        ctx.rotate(-Math.PI/6);
-        ctx.fillText(labels[i], 0, 0);
-        ctx.restore();
+
+      // animate bars from 0 -> values over duration
+      const duration = 700;
+      let start = null;
+      function frame(ts) {
+        if (!start) start = ts;
+        const t = Math.min(1, (ts - start) / duration);
+        ctx.clearRect(0,0,W,H);
+        ctx.strokeStyle = '#1f2937';
+        ctx.beginPath();
+        ctx.moveTo(padding, H - padding);
+        ctx.lineTo(W - padding, H - padding);
+        ctx.moveTo(padding, H - padding);
+        ctx.lineTo(padding, padding);
+        ctx.stroke();
+        for (let i = 0; i < count; i++) {
+          const x = padding + i * slot + gap/2;
+          const h = (H - padding*2) * (values[i] / maxVal) * t;
+          const y = H - padding - h;
+          const grad = ctx.createLinearGradient(x, y, x, y + Math.max(h,1));
+          grad.addColorStop(0, '#22d3ee'); grad.addColorStop(1, '#a78bfa');
+          ctx.fillStyle = grad;
+          ctx.fillRect(x, y, barW, Math.max(h,0));
+          ctx.fillStyle = '#9ca3af';
+          ctx.save();
+          ctx.translate(x + barW/2, H - padding + 14);
+          ctx.rotate(-Math.PI/6);
+          ctx.fillText(labels[i], 0, 0);
+          ctx.restore();
+        }
+        if (t < 1) requestAnimationFrame(frame);
       }
+      requestAnimationFrame(frame);
     }
 
     function renderMonthTable(weights) {
       const tbody = document.querySelector('#tableMonth tbody'); tbody.innerHTML = '';
-      weights.forEach(x => {
+      weights.forEach((x,i) => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${monthLabel(x.month)}</td><td>${formatMoney(x.revenue)}</td><td>${(x.weight*100).toFixed(2)}%</td>`;
+      tr.dataset.month = x.month;
+      tr.innerHTML = `<td>${monthLabel(x.month)}</td><td>${formatMoney(x.revenue)}</td><td>${(x.weight*100).toFixed(2)}%</td>`;
         tbody.appendChild(tr);
+        setTimeout(() => tr.classList.add('row-appear'), i * 25);
       });
     }
 
     function renderProductTable(products) {
       const tbody = document.querySelector('#tableProduct tbody'); tbody.innerHTML = '';
-      products.sort((a,b) => b.rev - a.rev).slice(0,50).forEach(p => {
+      const sel = document.getElementById('prodTopK');
+      const top = sel ? sel.value : '50';
+      const max = top === 'all' ? products.length : Math.max(1, parseInt(top,10) || 50);
+      const wrapper = document.getElementById('productTableWrapper');
+      if (wrapper) wrapper.style.maxHeight = (top === 'all') ? '' : '360px';
+
+      products.sort((a,b) => b.rev - a.rev).slice(0, max).forEach((p,i) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${p.code}</td><td>${p.name}</td><td>${formatMoney(p.qty)}</td><td>${formatMoney(p.rev)}</td><td>${formatMoney(Math.round(p.avgPrice))}</td>`;
         tbody.appendChild(tr);
+        setTimeout(() => tr.classList.add('row-appear'), i * 8);
       });
     }
 
@@ -423,24 +677,30 @@
       const header = document.createElement('div'); header.className = 'anomaly';
       header.innerHTML = `<strong>Phát hiện ${anomalies.length} sản phẩm có chênh lệch lớn (top 10 hiển thị)</strong>`;
       container.appendChild(header);
-      anomalies.slice(0,10).forEach(a => {
+      anomalies.slice(0,10).forEach((a,i) => {
         const d = document.createElement('div'); d.className = 'anomaly';
         d.style.background = '#1b0b0b';
         d.innerHTML = `<div><strong>${a.code} — ${a.name}</strong></div>
                        <div>Qty=${formatMoney(a.qty)} | Rev=${formatMoney(a.rev)} | Đơn giá TB=${formatMoney(Math.round(a.avgPrice))}</div>
                        <div style="color:#ffdede">Diff=${formatMoney(Math.round(a.diff))} | DiffRatio=${(a.diffRatio*100).toFixed(2)}%</div>`;
         container.appendChild(d);
+        setTimeout(() => d.classList.add('appear'), i * 60);
       });
     }
 
     function renderPlanMonth(weights, N) {
       const tbody = document.querySelector('#tablePlanMonth tbody'); tbody.innerHTML = '';
       const labels = [], values = [];
-      weights.forEach(x => {
+      weights.forEach((x,i) => {
         const plan = N * x.weight;
         const tr = document.createElement('tr');
+        tr.dataset.month = x.month;
+        tr.style.cursor = 'pointer';
+        tr.title = 'Click để xem danh sách sản phẩm bán ước tính cho mục tiêu tháng 2026';
         tr.innerHTML = `<td>${monthLabel(x.month)}</td><td>${(x.weight*100).toFixed(2)}%</td><td>${formatMoney(Math.round(plan))}</td>`;
+        tr.addEventListener('click', ()=> onPlanMonthClick(x.month, x.weight));
         tbody.appendChild(tr);
+        setTimeout(() => tr.classList.add('row-appear'), i * 25);
         labels.push(monthLabel(x.month)); values.push(plan);
       });
       drawBarChart(document.getElementById('chartMonth'), labels, values);
@@ -450,15 +710,160 @@
       const tbody = document.querySelector('#tablePlanProduct tbody'); tbody.innerHTML = '';
       const totalRev = products.reduce((s,x) => s + x.rev, 0);
 
-      products.sort((a,b) => b.rev - a.rev).slice(0,50).forEach(p => {
+      products.sort((a,b) => b.rev - a.rev).slice(0,50).forEach((p,i) => {
         const share = totalRev ? p.rev / totalRev : 0;
         const planRev = N * share;
         const planQty = p.avgPrice ? planRev / p.avgPrice : 0;
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${p.code}</td><td>${p.name}</td><td>${(share * 100).toFixed(2)}%</td><td>${formatMoney(Math.round(planRev))}</td><td>${formatMoney(Math.round(planQty))}</td>`;
         tbody.appendChild(tr);
+        setTimeout(() => tr.classList.add('row-appear'), i * 8);
       });
     }
+
+    // ---------- Month detail & export helpers ----------
+    function onMonthClick(month, weight, revenue2025) {
+      // legacy: open detail for historical 2025 month (kept for completeness)
+      const N = Number(document.getElementById('targetN').value || 0);
+      const monthTarget = N ? Math.round(N * (weight || 0)) : Math.round(revenue2025 || 0);
+      const prods = window._productMonthly || buildProductMonthly(window._lastDailyRows || []);
+      const method = document.getElementById('predictMethod') ? document.getElementById('predictMethod').value : 'heuristic';
+      // compute forecasted distribution for this month and render (display as 2025)
+      renderMonthDetail(month, monthTarget, prods, method, 2025);
+      const card = document.getElementById('monthDetailCard');
+      card.style.display = 'block';
+      card.scrollIntoView({behavior:'smooth', block:'center'});
+      document.getElementById('monthDetailInfo').textContent = `Mục tiêu ${monthLabelYear(month,2025)} = ${formatMoney(monthTarget)} — Phương pháp: ${method}`;
+    }
+
+    function onPlanMonthClick(month, weight) {
+      // open detail for planned month in 2026 using target N
+      const N = Number(document.getElementById('targetN').value || 0);
+      const monthTarget = N ? Math.round(N * (weight || 0)) : 0;
+      const prods = window._productMonthly || buildProductMonthly(window._lastDailyRows || []);
+      const method = document.getElementById('predictMethod') ? document.getElementById('predictMethod').value : 'heuristic';
+      renderMonthDetail(month, monthTarget, prods, method, 2026);
+      const card = document.getElementById('monthDetailCard');
+      card.style.display = 'block';
+      card.scrollIntoView({behavior:'smooth', block:'center'});
+      document.getElementById('monthDetailInfo').textContent = `Kế hoạch ${monthLabelYear(month,2026)} = ${formatMoney(monthTarget)} — Phương pháp: ${method}`;
+    }
+
+    function renderMonthDetail(month, monthTarget, productMonthly, method='heuristic', year=2025) {
+      const tbody = document.querySelector('#tableMonthDetail tbody'); tbody.innerHTML = '';
+      const m = month - 1;
+
+      // compute raw forecasts per product for the requested month
+      const candidates = productMonthly.map(p => {
+        const monthRev = (p.monthlyRev && p.monthlyRev[m]) ? p.monthlyRev[m] : 0;
+        let rawForecast = 0;
+        if (method === 'holt') {
+          const series = p.monthlyRev.map(x => x || 0);
+          const f = holtWintersAdditive(series, 12, 12, 0.2, 0.01, 0.1);
+          rawForecast = f && f.length > m ? (f[m] || 0) : 0;
+        } else {
+          // heuristic: use last year's same month revenue as naive forecast
+          rawForecast = monthRev || 0;
+        }
+        return { code: p.code, name: p.name, monthRev, rawForecast, avgPrice: p.avgPrice, annualRev: p.rev };
+      });
+
+      // exclude items with no price or non-positive forecast for the primary pass
+      const included = candidates.filter(c => c.avgPrice && c.avgPrice > 0 && c.rawForecast > 0);
+      const excludedCount = candidates.length - included.length;
+
+      let data = [];
+      const sumRaw = included.reduce((s,x)=>s + x.rawForecast, 0);
+      if (sumRaw > 0) {
+        const scale = monthTarget / sumRaw;
+        data = included.map(r => {
+          const planRev = Math.round(r.rawForecast * scale);
+          const planQty = r.avgPrice ? Math.round(planRev / r.avgPrice) : 0;
+          const share = r.rawForecast / sumRaw;
+          return { ...r, share, planRev, planQty };
+        });
+      } else {
+        // fallback: distribute by historical month revenue share; if that's zero too, fallback to annual share
+        const totalHist = candidates.reduce((s,x)=>s + x.monthRev, 0);
+        if (totalHist > 0) {
+          data = candidates.filter(c => c.avgPrice && c.avgPrice > 0).map(r=>{
+            const share = r.monthRev / totalHist;
+            const planRev = Math.round(monthTarget * share);
+            const planQty = r.avgPrice ? Math.round(planRev / r.avgPrice) : 0;
+            return { ...r, rawForecast: r.monthRev, share, planRev, planQty };
+          });
+        } else {
+          const totalAnnual = candidates.reduce((s,x)=>s + x.annualRev, 0) || 1;
+          data = candidates.filter(c => c.avgPrice && c.avgPrice > 0).map(r=>{
+            const share = r.annualRev / totalAnnual;
+            const planRev = Math.round(monthTarget * share);
+            const planQty = r.avgPrice ? Math.round(planRev / r.avgPrice) : 0;
+            return { ...r, rawForecast: r.annualRev * (1/12), share, planRev, planQty };
+          });
+        }
+      }
+
+      data = data.sort((a,b)=>b.planRev - a.planRev).slice(0,500);
+
+      // keep last detail for export (include method and year)
+      window._lastMonthDetail = { month, monthTarget, method, year, rows: data };
+
+      data.forEach((r,i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${r.code}</td><td>${r.name}</td><td>${formatMoney(Math.round(r.rawForecast))}</td><td>${(r.share*100).toFixed(2)}%</td><td>${formatMoney(r.planRev)}</td><td>${formatMoney(r.planQty)}</td>`;
+        tbody.appendChild(tr);
+        setTimeout(() => tr.classList.add('row-appear'), i * 6);
+      });
+
+      const infoEl = document.getElementById('monthDetailInfo');
+      if (infoEl) infoEl.textContent = `Mục tiêu ${monthLabelYear(month,year)} = ${formatMoney(monthTarget)} — Phương pháp: ${method} — Đã loại ${excludedCount} sản phẩm (không có giá/demand=0)`;
+    }
+
+    function downloadCSV(filename, content) {
+      const blob = new Blob([content], {type: 'text/csv;charset=utf-8;'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    }
+
+    function exportMonthDetailCSV() {
+      const last = window._lastMonthDetail;
+      if (!last || !last.rows || last.rows.length === 0) { alert('Không có dữ liệu để xuất. Vui lòng chọn một tháng.'); return; }
+      const lines = [ ['Mã hàng','Tên hàng','Doanh thu 2025 (tháng)','Dự báo thô','Tỷ trọng','Kế hoạch doanh thu','Kế hoạch số lượng','Phương pháp'].join(',') ];
+      last.rows.forEach(r => lines.push([r.code, `"${r.name.replace(/"/g,'""') }"`, Math.round(r.rawForecast||0), (r.share*100).toFixed(2)+'%', r.planRev, r.planQty, last.method || ''].join(',')));
+      const fname = `month-${String(last.month).padStart(2,'0')}-${last.year || '2025'}-detail.csv`;
+      downloadCSV(fname, lines.join('\n'));
+    }
+
+    document.getElementById('btnExportMonthDetail').addEventListener('click', exportMonthDetailCSV);
+    document.getElementById('btnCloseMonthDetail').addEventListener('click', ()=>{ document.getElementById('monthDetailCard').style.display='none'; });
+
+    // UI for limiting table lengths
+    document.getElementById('prodTopK').addEventListener('change', ()=>{ renderProductTable(window._lastProducts || []); });
+    document.getElementById('prodToggleBtn').addEventListener('click', ()=>{
+      const sel = document.getElementById('prodTopK'); sel.value = (sel.value === 'all') ? '50' : 'all'; renderProductTable(window._lastProducts || []);
+    });
+
+    document.getElementById('predictTopK').addEventListener('change', ()=>{ renderPredictTable(window._lastPredicted || []); });
+    document.getElementById('predictToggleBtn').addEventListener('click', ()=>{
+      const sel = document.getElementById('predictTopK'); sel.value = (sel.value === 'all') ? '50' : 'all'; renderPredictTable(window._lastPredicted || []);
+    });
+
+    document.getElementById('monthDetailTopK').addEventListener('change', ()=>{
+      const last = window._lastMonthDetail;
+      if (!last) return;
+      // re-render using stored rows (no recompute)
+      const tbody = document.querySelector('#tableMonthDetail tbody'); tbody.innerHTML = '';
+      const top = document.getElementById('monthDetailTopK').value;
+      const max = top === 'all' ? last.rows.length : Math.max(1, parseInt(top,10) || 50);
+      const wrapper = document.getElementById('monthDetailWrapper'); if (wrapper) wrapper.style.maxHeight = (top === 'all') ? '' : '360px';
+      last.rows.slice(0, max).forEach((r,i)=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${r.code}</td><td>${r.name}</td><td>${formatMoney(Math.round(r.rawForecast))}</td><td>${(r.share*100).toFixed(2)}%</td><td>${formatMoney(r.planRev)}</td><td>${formatMoney(r.planQty)}</td>`;
+        tbody.appendChild(tr);
+        setTimeout(() => tr.classList.add('row-appear'), i * 6);
+      });
+    });
 
     function updateQuickStats(monthArr, products, weightsMonth) {
       const best = monthArr.slice().sort((a,b)=>b.revenue-a.revenue)[0];
@@ -495,7 +900,9 @@
 
     document.getElementById('btnAnalyze').addEventListener('click', async () => {
       try {
-        document.getElementById('status').textContent = 'Đang xử lý...';
+        const statusEl = document.getElementById('status');
+        statusEl.textContent = 'Đang xử lý...';
+        statusEl.classList.add('pulse');
         const fDaily = document.getElementById('fileDaily').files[0];
         const fMonthly = document.getElementById('fileMonthly').files[0];
         const N = Number(document.getElementById('targetN').value || 0);
@@ -504,6 +911,10 @@
         const [txtDaily, txtMonthly] = await Promise.all([readFileAsText(fDaily), readFileAsText(fMonthly)]);
         const dailyCSV = parseCSV(txtDaily);
         const monthlyCSV = parseCSV(txtMonthly);
+        // keep last parsed daily rows for prediction
+        window._lastDailyRows = dailyCSV.rows;
+        // build & store per-product monthly series for month-detail and prediction
+        window._productMonthly = buildProductMonthly(dailyCSV.rows);
 
         // monthly authoritative totals
         const unp = unpivotDoanhThu(monthlyCSV);
@@ -512,6 +923,8 @@
 
         // products from daily
         const { products, anomalies } = groupByProduct(dailyCSV.rows);
+        // store last products for rerendering when user changes top-K
+        window._lastProducts = products;
 
         // render
         renderMonthTable(weightsMonth);
@@ -522,10 +935,17 @@
         updateQuickStats(monthArr, products, weightsMonth);
         validateTotals(monthArr, products);
 
-        document.getElementById('status').textContent = 'Đã phân tích';
+        // small entrance animation for cards
+        document.querySelectorAll('.card').forEach((c,i) => setTimeout(()=>c.classList.add('appear'), i * 70));
+
+        statusEl.textContent = 'Đã phân tích';
+        statusEl.classList.remove('pulse');
+        statusEl.style.background = '';
       } catch (err) {
         console.error(err);
-        document.getElementById('status').textContent = 'Lỗi phân tích';
+        statusEl.textContent = 'Lỗi phân tích';
+        statusEl.classList.remove('pulse');
+        statusEl.style.background = '#ef4444';
         alert('Lỗi khi đọc/parse CSV. Kiểm tra encoding (UTF-8) và tên cột. Nếu cần, dán 5–10 dòng mẫu vào chat để mình điều chỉnh.');
       }
     });
